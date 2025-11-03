@@ -1,4 +1,4 @@
-# krishn_lightning_fixed_scope.py
+# app.py - Production Ready with CORS Fixes
 print("🚀 Loading KRISHN Lightning Fast Fixed Edition with Scope Control...")
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
@@ -19,7 +19,30 @@ import numpy as np
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
-CORS(app)
+
+# FIXED CORS Configuration for Production
+CORS(app, resources={
+    r"/*": {
+        "origins": ["*"],  # Allow all origins for now
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+    }
+})
+
+# Manual CORS headers for additional security
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Handle preflight requests
+@app.route('/api/upload', methods=['OPTIONS'])
+@app.route('/api/ask', methods=['OPTIONS'])
+def options_handler():
+    return '', 200
 
 # Session management
 user_sessions = {}
@@ -55,7 +78,7 @@ class LightningPDFProcessor:
                             if len(para) > 50:  # Only keep substantial paragraphs
                                 chunks.append({
                                     'text': para,
-                                    'source': os.path.basename(file_path),
+                                    'source': os.pathasename(file_path),
                                     'page_number': page_num + 1
                                 })
             
@@ -532,6 +555,9 @@ Example: 'What is this document about?' or 'Summarize the key findings'"></texta
     </div>
 
     <script>
+        // BACKEND URL - Update this to your Render URL
+        const BACKEND_URL = 'https://msac.onrender.com';
+        
         function showStatus(message, type) {
             const statusDiv = document.getElementById('fileStatus');
             statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
@@ -559,9 +585,10 @@ Example: 'What is this document about?' or 'Summarize the key findings'"></texta
             const formData = new FormData();
             formData.append('file', file);
             
-            fetch('/api/upload', {
+            fetch(BACKEND_URL + '/api/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                mode: 'cors'
             })
             .then(response => response.json())
             .then(data => {
@@ -577,6 +604,7 @@ Example: 'What is this document about?' or 'Summarize the key findings'"></texta
             })
             .catch(error => {
                 showStatus(`❌ Upload failed: ${error}`, 'error');
+                console.error('Upload error:', error);
             })
             .finally(() => {
                 uploadBtn.disabled = false;
@@ -606,10 +634,11 @@ Example: 'What is this document about?' or 'Summarize the key findings'"></texta
             
             const startTime = Date.now();
             
-            fetch('/api/ask', {
+            fetch(BACKEND_URL + '/api/ask', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question: question})
+                body: JSON.stringify({question: question}),
+                mode: 'cors'
             })
             .then(response => response.json())
             .then(data => {
@@ -623,6 +652,7 @@ Example: 'What is this document about?' or 'Summarize the key findings'"></texta
                 chatArea.scrollTop = chatArea.scrollHeight;
             })
             .catch(error => {
+                console.error('Ask error:', error);
                 chatArea.innerHTML += `<div class="message assistant"><strong>KRISHN:</strong> Sorry, I encountered an error. Please try again.</div>`;
             })
             .finally(() => {
@@ -737,12 +767,15 @@ if __name__ == "__main__":
     print("🔧 Production-ready configuration")
     print("-" * 50)
     
+    # Get port from environment variable (Render provides this)
+    port = int(os.environ.get("PORT", 5007))
+    
     # Start browser thread only in development
     if os.environ.get('PRODUCTION') != 'true':
         browser_thread = threading.Thread(target=open_browser)
         browser_thread.daemon = True
         browser_thread.start()
-        app.run(host='0.0.0.0', port=5007, debug=False)
+        app.run(host='0.0.0.0', port=port, debug=False)
     else:
         # Production mode - no browser auto-open
-        app.run(host='0.0.0.0', port=5007, debug=False)
+        app.run(host='0.0.0.0', port=port, debug=False)
