@@ -78,7 +78,7 @@ class LightningPDFProcessor:
                             if len(para) > 50:  # Only keep substantial paragraphs
                                 chunks.append({
                                     'text': para,
-                                    'source': os.pathasename(file_path),
+                                    'source': os.path.basename(file_path),
                                     'page_number': page_num + 1
                                 })
             
