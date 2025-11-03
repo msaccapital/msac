@@ -1,5 +1,5 @@
 import os
-from krishn_lightning_fixed_scope import app
+from app import app
 
 # Set production environment
 os.environ['PRODUCTION'] = 'true'
